@@ -6,6 +6,7 @@ Only the standard library is used for HTTP, so the harness has a single dependen
 
 from __future__ import annotations
 
+import http.client
 import json
 import os
 import time
@@ -25,20 +26,42 @@ class ProviderError(RuntimeError):
     pass
 
 
-def _post_json(url: str, payload: dict, headers: dict | None = None, timeout: float = 120.0) -> dict:
+RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+_sleep = time.sleep  # swapped out in tests
+
+
+def _post_json(url: str, payload: dict, headers: dict | None = None, timeout: float = 120.0,
+               retries: int = 2, backoff_s: float = 2.0) -> dict:
+    """POST JSON and return the parsed response.
+
+    Transient failures (timeouts, dropped connections, 429 and 5xx responses) are retried
+    with exponential backoff. Anything else, or a failure that outlasts the retries, is
+    raised as ProviderError so the runner can record it and carry on.
+    """
     data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(url, data=data, method="POST")
-    req.add_header("Content-Type", "application/json")
-    for key, value in (headers or {}).items():
-        req.add_header(key, value)
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")[:500]
-        raise ProviderError(f"HTTP {exc.code} from {url}: {body}") from exc
-    except urllib.error.URLError as exc:
-        raise ProviderError(f"Could not reach {url}: {exc.reason}") from exc
+    last_error = "unknown error"
+    for attempt in range(retries + 1):
+        req = urllib.request.Request(url, data=data, method="POST")
+        req.add_header("Content-Type", "application/json")
+        for key, value in (headers or {}).items():
+            req.add_header(key, value)
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")[:500]
+            last_error = f"HTTP {exc.code} from {url}: {body}"
+            if exc.code not in RETRYABLE_STATUS:
+                raise ProviderError(last_error) from exc
+        except urllib.error.URLError as exc:
+            last_error = f"Could not reach {url}: {exc.reason}"
+        except (TimeoutError, ConnectionError, http.client.HTTPException) as exc:
+            last_error = f"{type(exc).__name__} from {url}: {exc}"
+        except json.JSONDecodeError as exc:
+            raise ProviderError(f"Invalid JSON from {url}: {exc}") from exc
+        if attempt < retries:
+            _sleep(backoff_s * (2 ** attempt))
+    raise ProviderError(f"{last_error} (after {retries + 1} attempts)")
 
 
 class Provider:

@@ -77,6 +77,9 @@ def evaluate_one(provider: Provider, prompt_name: str, template: str, case: Case
     except ProviderError as exc:
         result.error = str(exc)
         return result
+    except Exception as exc:  # one bad request must never lose the rest of the run
+        result.error = f"Unexpected {type(exc).__name__}: {exc}"
+        return result
     recall = key_fact_recall(completion.text, case.key_facts)
     halluc = hallucination(completion.text, case.source)
     result.output = completion.text
