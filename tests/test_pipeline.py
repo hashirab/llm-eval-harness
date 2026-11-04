@@ -142,3 +142,21 @@ def test_cli_run_report_and_compare(tmp_path, monkeypatch, capsys):
 
     assert cli.main(["compare", str(run_file), str(run_file)]) == 0
     assert "No regressions" in capsys.readouterr().out
+
+
+def test_cli_models_filter(tmp_path, capsys):
+    cfg = tmp_path / "two.yaml"
+    cfg.write_text(
+        f"name: two\ndataset: {ROOT / 'datasets' / 'security_incidents.jsonl'}\nrepeats: 1\n"
+        f"output_dir: {tmp_path / 'runs'}\nprompts:\n  baseline: {ROOT / 'prompts' / 'baseline.txt'}\n"
+        "models:\n  - provider: mock\n    model: alpha\n  - provider: mock\n    model: beta\n"
+    )
+    assert cli.main(["run", str(cfg), "--limit", "1", "--models", "beta"]) == 0
+    data = json.loads(next((tmp_path / "runs").glob("*.json")).read_text())
+    assert {r["model"] for r in data["results"]} == {"mock:beta"}
+
+    assert cli.main(["run", str(cfg), "--limit", "1", "--models", "nothing"]) == 2
+
+    assert cli.main(["run", str(cfg), "--limit", "1", "--models", "alpha", "--model-override", "gamma"]) == 0
+    models = {r["model"] for f in (tmp_path / "runs").glob("*.json") for r in json.loads(f.read_text())["results"]}
+    assert "mock:gamma" in models

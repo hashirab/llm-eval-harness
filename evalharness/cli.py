@@ -25,6 +25,18 @@ def cmd_run(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     if args.repeats:
         config["repeats"] = args.repeats
+    if args.models:
+        wanted = [m.strip().lower() for m in args.models.split(",") if m.strip()]
+        config["models"] = [
+            spec for spec in config["models"]
+            if any(w in f"{spec['provider']}:{spec.get('model', '')}".lower() for w in wanted)
+        ]
+        if not config["models"]:
+            print(f"No models in {args.config} match --models {args.models}")
+            return 2
+    if args.model_override:
+        for spec in config["models"]:
+            spec["model"] = args.model_override
     data = run(config, limit=args.limit)
     path = save_run(data, config["output_dir"])
     print(report.to_markdown(data))
@@ -68,6 +80,8 @@ def main(argv: list[str] | None = None) -> int:
     p_run.add_argument("config")
     p_run.add_argument("--limit", type=int, help="only use the first N test cases")
     p_run.add_argument("--repeats", type=int, help="override the number of repeats per case")
+    p_run.add_argument("--models", help="only run models whose 'provider:model' contains one of these comma-separated words, e.g. gemini")
+    p_run.add_argument("--model-override", help="use this model name for every selected model, e.g. gemini-3.8-flash-lite")
     p_run.set_defaults(func=cmd_run)
 
     p_report = sub.add_parser("report", help="summarise a saved run as Markdown")
