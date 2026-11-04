@@ -27,6 +27,30 @@ Every score keeps its evidence: the run file records which facts were missed and
 
 The metrics are deliberately deterministic. An LLM-as-judge could catch wrong claims made in plain words, which the entity check cannot, but it adds its own non-determinism and cost. It is the natural next extension (see Roadmap).
 
+## Results
+
+First run on the bundled test set (8 synthetic incidents, 2 repeats per model and prompt, 4 November 2026). Llama 3.1 8B ran locally through Ollama on an Apple Silicon Mac; Gemini 3.5 Flash-Lite ran through the Gemini API.
+
+| Model | Prompt | Key-fact recall | Hallucination rate | Instability | p50 latency |
+| --- | --- | --- | --- | --- | --- |
+| gemini-3.5-flash-lite | structured | **81.0%** ± 10.6% | 0.3% | **0.017** | 22.0 s |
+| gemini-3.5-flash-lite | baseline | 76.2% ± 19.1% | 0.0% | 0.048 | 24.8 s |
+| llama3.1:8b (local) | structured | 70.8% ± 14.6% | 1.3% | 0.071 | 17.9 s |
+| llama3.1:8b (local) | baseline | 64.3% ± 20.1% | 0.0% | 0.075 | 12.2 s |
+
+What it shows:
+
+- **The structured prompt helped both models**, adding about 5 to 6 points of key-fact recall. A plain request for headings and bullet points, not an elaborate prompt-optimisation technique.
+- **Gemini covered more key facts** than the local 8B model (81% vs 71% with the structured prompt), at the cost of sending data to a hosted API.
+- **Hallucination of hard facts was low throughout**, at 1.5% or less of extracted entities.
+- **The local results reproduced**: an earlier run gave Llama 72.6% (structured) and 65.0% (baseline).
+
+Caveats, stated plainly:
+
+- Eight cases is a small test set, so differences of a few points are within the noise (see the ± spread).
+- Gemini was measured while the API was reporting high demand, and latency includes retry waits, so its latency is likely pessimistic.
+- The hallucination check only covers checkable entities. A wrong claim made in plain words is not caught.
+
 ## Quick start
 
 ```bash
