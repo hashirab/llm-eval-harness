@@ -35,6 +35,10 @@ def compare(baseline: dict, candidate: dict, thresholds: Thresholds | None = Non
     deltas = []
     for key in sorted(base.keys() & cand.keys()):
         b, c = base[key], cand[key]
+        if b.failed or c.failed:
+            problems = ["candidate failed on every request"] if c.failed else []
+            deltas.append(Delta(key[0], key[1], 0.0, 0.0, 0.0, problems))
+            continue
         d_recall = c.recall_mean - b.recall_mean
         d_halluc = c.hallucination_mean - b.hallucination_mean
         d_latency = (c.latency_p95 - b.latency_p95) / b.latency_p95 if b.latency_p95 else 0.0

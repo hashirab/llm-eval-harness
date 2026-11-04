@@ -24,6 +24,11 @@ class Summary:
     def key(self) -> tuple[str, str]:
         return (self.model, self.prompt)
 
+    @property
+    def failed(self) -> bool:
+        """True when every request errored, so the scores are not meaningful."""
+        return self.n > 0 and self.errors == self.n
+
 
 def _percentile(values: list[float], pct: float) -> float:
     if not values:
@@ -65,7 +70,7 @@ def summarise(run_data: dict) -> list[Summary]:
             latency_p50=_percentile(latencies, 0.5),
             latency_p95=_percentile(latencies, 0.95),
         ))
-    return sorted(summaries, key=lambda s: (-s.recall_mean, s.hallucination_mean))
+    return sorted(summaries, key=lambda s: (s.failed, -s.recall_mean, s.hallucination_mean))
 
 
 def to_markdown(run_data: dict) -> str:
@@ -79,6 +84,9 @@ def to_markdown(run_data: dict) -> str:
         "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for s in rows:
+        if s.failed:
+            lines.append(f"| {s.model} | {s.prompt} | — | — | — | — | — | {s.errors}/{s.n} (all failed) |")
+            continue
         lines.append(
             f"| {s.model} | {s.prompt} | {s.recall_mean:.1%} ± {s.recall_std:.1%} | "
             f"{s.hallucination_mean:.1%} | {s.instability:.3f} | {s.latency_p50:,.0f} | "
@@ -88,6 +96,10 @@ def to_markdown(run_data: dict) -> str:
     if worst:
         lines += ["", "### Unsupported entities (most frequent)", ""]
         lines += [f"- `{value}` ({count}x)" for value, count in worst]
+    failed = [s for s in rows if s.failed]
+    if failed:
+        first_error = next(r["error"] for r in run_data["results"] if r["error"])
+        lines += ["", f"**{len(failed)} model/prompt pair(s) failed on every request.** First error: `{first_error[:200]}`"]
     return "\n".join(lines) + "\n"
 
 

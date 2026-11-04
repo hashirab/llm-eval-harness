@@ -76,7 +76,32 @@ def test_provider_errors_are_recorded_not_raised():
     config = load_config(MOCK_CONFIG)
     data = run(config, providers=[MockProvider("broken", responder=broken)], limit=2, progress=False)
     assert all(r["error"] == "model offline" for r in data["results"])
-    assert summarise(data)[0].errors == len(data["results"])
+    summary = summarise(data)[0]
+    assert summary.errors == len(data["results"]) and summary.failed
+    md = to_markdown(data)
+    assert "all failed" in md and "model offline" in md
+    assert "0.0%" not in md
+
+
+def test_failed_pairs_sort_last_and_do_not_count_as_regressions_from_a_failed_baseline():
+    def broken(prompt):
+        raise ProviderError("model offline")
+
+    config = load_config(MOCK_CONFIG)
+    cases = load_dataset(config["dataset"])
+
+    def good(prompt):
+        case = next(c for c in cases if c.source in prompt)
+        return " ".join(case.key_facts)
+
+    data = run(config, providers=[MockProvider("broken", responder=broken), MockProvider("good", responder=good)],
+               limit=2, progress=False)
+    assert [s.model for s in summarise(data)] == ["mock:good", "mock:broken"]
+
+    failed_base = run(config, providers=[MockProvider("m", responder=broken)], limit=2, progress=False)
+    fixed = run(config, providers=[MockProvider("m", responder=good)], limit=2, progress=False)
+    assert not has_regression(compare(failed_base, fixed))
+    assert has_regression(compare(fixed, failed_base))
 
 
 def test_compare_flags_regression_and_passes_identical_runs():
