@@ -1,0 +1,13 @@
+# Offline dry run: no API keys or models needed. Used in CI.
+name: mock-smoke
+dataset: ../datasets/security_incidents.jsonl
+repeats: 2
+output_dir: ../runs
+
+prompts:
+  baseline: ../prompts/baseline.txt
+
+models:
+  - provider: mock
+    model: echo
+    echo_chars: 400

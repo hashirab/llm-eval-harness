@@ -1,0 +1,6 @@
+You are a security analyst. Summarise the incident below for a SOC lead in 3-5 sentences.
+Include what happened, the affected systems and accounts, key indicators (IPs, domains, files), and the response actions.
+Only use facts that appear in the incident text.
+
+INCIDENT:
+{incident}

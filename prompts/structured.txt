@@ -1,0 +1,12 @@
+You are a security analyst. Read the incident below and write a structured summary with exactly these headings:
+
+Incident type:
+Affected systems/accounts:
+Indicators of compromise:
+Timeline:
+Response actions:
+
+Use short bullet points. Copy indicators (IPs, domains, hashes, file names) exactly as written. Do not add any detail that is not in the incident text.
+
+INCIDENT:
+{incident}
