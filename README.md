@@ -8,11 +8,11 @@ The bundled example evaluates LLMs on summarising security incidents, where an i
 
 ## Why it exists
 
-During an AI studentship at BT I benchmarked local LLMs against Google Gemini for summarising cybersecurity incident data. The main lesson was that LLM quality has to be measured, not assumed: elaborate prompt-optimisation methods gave no measurable gain over well-designed baseline prompts, and that only became clear by scoring every output the same way.
+For my MSc dissertation, carried out alongside an AI studentship at BT, I benchmarked a local model (Llama 3.2 3B via Ollama) against a cloud model (Llama 3.1 8B on Groq) for summarising security incidents, across eight prompting strategies. The main lesson was that LLM quality has to be measured, not assumed: simple constraint prompts gave zero hallucinations and cut local latency by up to 85%, while more elaborate prompts (templates, glossaries, few-shot examples) increased hallucinations. That only became clear by scoring every output the same way.
 
 This repository is a clean, open rebuild of that approach. **It contains no BT code or data.** The incidents in `datasets/` are synthetic and use reserved documentation IP ranges (RFC 5737) and `example.*` domains.
 
-The code was written with Claude as a coding agent; the evaluation approach comes from my BT study, and I reviewed and tested it.
+The code was written with Claude as a coding agent; the evaluation approach comes from my dissertation, and I reviewed and tested it.
 
 ## What it measures
 
